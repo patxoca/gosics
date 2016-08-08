@@ -7,6 +7,14 @@ import (
 ////////////////////////////////////////////////////////////////////////
 //
 // the virtual machine
+//
+// - Separated address spaces for program and data.
+//
+// - Uses uint8 to index memory, so each block of memory is 256 words
+//   long.
+//
+// - words in the program block are of type Instruction (32 bits long)
+//   while words in data block are of type DataCell (8 bits long).
 
 type ProgramAddress uint8
 type DataAddress uint8
@@ -29,12 +37,16 @@ type Computer struct {
 	data_memory    [uint(MaxDataAddress) + 1]DataCell
 }
 
+// load_program loads the code into the program memory
 func (self *Computer) load_program(code []Instruction) {
 	for i, instr := range code {
 		self.program_memory[i] = instr
 	}
 }
 
+// load_data load the data into the data memory. Takes care of
+// initializing the ZERO and ONE addresses, after the data has been
+// loaded, so it may overwrite those memory cells.
 func (self *Computer) load_data(data []DataCell) {
 	for i, cell := range data {
 		self.data_memory[i] = cell
@@ -43,10 +55,13 @@ func (self *Computer) load_data(data []DataCell) {
 	self.data_memory[ONE] = 1
 }
 
+// Halted return true if the computer is halted
 func (self *Computer) Halted() bool {
 	return (self.ip == MaxProgramAddress)
 }
 
+// Step if the computer is not halted executes the next instruction,
+// updates the IP pointer and returns
 func (self *Computer) Step() {
 	if !self.Halted() {
 		instr := self.program_memory[self.ip]
@@ -82,6 +97,9 @@ func (self *Computer) PrintDataMemory(n DataAddress) {
 	fmt.Println("")
 }
 
+// formatDataAddress if 'a' points to some of the reserved addresses a
+// symbolic representation is used (j for JUNK, o for ONE and z for
+// ZERO) otherwise the numerical representation of the address is used.
 func formatDataAddress(a DataAddress) string {
 	switch a {
 	case JUNK:
@@ -95,6 +113,9 @@ func formatDataAddress(a DataAddress) string {
 	}
 }
 
+// formatProgramAddress if 'a' points to the halt address a symbolic
+// representation is used (h) otherwise the numerical representation
+// of the address is used.
 func formatProgramAddress(a ProgramAddress) string {
 	if a == MaxProgramAddress {
 		return "h"
@@ -130,22 +151,33 @@ const JUNK DataAddress = MaxDataAddress
 const ONE DataAddress = MaxDataAddress - 2
 const ZERO DataAddress = MaxDataAddress - 1
 
-var SP DataAddress = MaxDataAddress - 3
-
 ////////////////////////////////////////////////////////////////////////
 //
 // the assembler
+//
+// - supports labels to reference addresses in program memory
+//
+// - stores SBNZ instructions, maybe with unresolved references to
+//   labels
+//
+//
 
+// The ILabel interface is provided by all types that can be used as
+// addresses in an assembler program, either literal addresses
+// (ProgramAddress) or symbolic addresses (Label).
 type ILabel interface {
 	GetAddress(a Assembler) ProgramAddress
 }
 
 type Label string
 
+// GetAddress return the address
 func (self ProgramAddress) GetAddress(a Assembler) ProgramAddress {
 	return self
 }
 
+// GetAddress perform a lookup of the label in the label table and
+// return the corresponding address. Panic if the label is not found.
 func (self Label) GetAddress(a Assembler) ProgramAddress {
 	return a.labels[self]
 }
@@ -163,21 +195,29 @@ type Assembler struct {
 	instructions [MaxProgramAddress]PseudoInstruction
 }
 
+// NewAssembler create a new Assembler instance and initialized
+// internal structures. Don't create an Assembler directly!!
 func NewAssembler() Assembler {
 	ass := Assembler{}
 	ass.labels = make(map[Label]ProgramAddress)
 	return ass
 }
 
+// add adds a new SBNZ instruction with a program addres possibly
+// unresolved
 func (self *Assembler) add(a, b, c DataAddress, d ILabel) {
 	self.instructions[self.ip] = PseudoInstruction{a: a, b: b, c: c, d: d}
 	self.ip++
 }
 
+// label defines a label named 'label' for the current instruction
+// pointer
 func (self *Assembler) label(label Label) {
 	self.labels[label] = self.ip
 }
 
+// assemble resolves unresolved program addresses and retuns a valid
+// program (an slice of Instruction).
 func (self *Assembler) assemble() []Instruction {
 	res := make([]Instruction, self.ip)
 	for i, instr := range self.instructions[:self.ip] {
@@ -186,40 +226,57 @@ func (self *Assembler) assemble() []Instruction {
 	return res
 }
 
+// SBNZ synomym to 'add'
 func (self *Assembler) SBNZ(a, b, c DataAddress, d ILabel) {
 	self.add(a, b, c, d)
 }
 
+// Sinthetized instructions
+//
+// The following methods define macro instructions for some usual
+// opcodes in terms of the SBNZ instruction. Unless stated the
+// execution continues in the next instruction.
+
+// JMP incoditional jump to 'a'
 func (self *Assembler) JMP(a ILabel) {
 	self.add(ONE, ZERO, JUNK, a)
 }
 
+// HLT halt execution
 func (self *Assembler) HLT() {
 	self.add(ONE, ZERO, JUNK, MaxProgramAddress)
 }
 
+// NEG negate the content of 'a' and store the result in 'b'. 'a' and
+// 'b' may point to the same data address.
 func (self *Assembler) NEG(a, b DataAddress) {
 	self.add(ZERO, a, b, self.ip+1)
 }
 
+// ADD add content of 'a' to content of 'b' and store the result in
+// 'c'. 'a', 'b' and 'c' may point to the same data address.
 func (self *Assembler) ADD(a, b, c DataAddress) {
 	self.NEG(b, JUNK)
 	self.add(a, JUNK, c, self.ip+1)
 }
 
+// MOV copy content of 'a' to 'b'.
 func (self *Assembler) MOV(a, b DataAddress) {
 	self.add(a, ZERO, b, self.ip+1)
 }
 
+// BEQ branch execution to 'c' if contents of 'a' and 'b' are equal.
 func (self *Assembler) BEQ(a, b DataAddress, c ILabel) {
 	self.add(a, b, JUNK, self.ip+2)
 	self.JMP(c)
 }
 
+// NOP do nothing
 func (self *Assembler) NOP() {
 	self.add(JUNK, JUNK, JUNK, self.ip+1)
 }
 
+// DEC decrement content of 'a'
 func (self *Assembler) DEC(a DataAddress) {
 	self.add(a, ONE, a, self.ip+1)
 }
