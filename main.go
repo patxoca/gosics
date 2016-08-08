@@ -203,9 +203,9 @@ func NewAssembler() Assembler {
 	return ass
 }
 
-// add adds a new SBNZ instruction with a program addres possibly
-// unresolved
-func (self *Assembler) add(a, b, c DataAddress, d ILabel) {
+// SBNZ adds a new SBNZ instruction to the program with a program
+// address possibly unresolved.
+func (self *Assembler) SBNZ(a, b, c DataAddress, d ILabel) {
 	self.instructions[self.ip] = PseudoInstruction{a: a, b: b, c: c, d: d}
 	self.ip++
 }
@@ -226,11 +226,6 @@ func (self *Assembler) assemble() []Instruction {
 	return res
 }
 
-// SBNZ synomym to 'add'
-func (self *Assembler) SBNZ(a, b, c DataAddress, d ILabel) {
-	self.add(a, b, c, d)
-}
-
 // Sinthetized instructions
 //
 // The following methods define macro instructions for some usual
@@ -239,46 +234,46 @@ func (self *Assembler) SBNZ(a, b, c DataAddress, d ILabel) {
 
 // JMP incoditional jump to 'a'
 func (self *Assembler) JMP(a ILabel) {
-	self.add(ONE, ZERO, JUNK, a)
+	self.SBNZ(ONE, ZERO, JUNK, a)
 }
 
 // HLT halt execution
 func (self *Assembler) HLT() {
-	self.add(ONE, ZERO, JUNK, MaxProgramAddress)
+	self.SBNZ(ONE, ZERO, JUNK, MaxProgramAddress)
 }
 
 // NEG negate the content of 'a' and store the result in 'b'. 'a' and
 // 'b' may point to the same data address.
 func (self *Assembler) NEG(a, b DataAddress) {
-	self.add(ZERO, a, b, self.ip+1)
+	self.SBNZ(ZERO, a, b, self.ip+1)
 }
 
 // ADD add content of 'a' to content of 'b' and store the result in
 // 'c'. 'a', 'b' and 'c' may point to the same data address.
 func (self *Assembler) ADD(a, b, c DataAddress) {
 	self.NEG(b, JUNK)
-	self.add(a, JUNK, c, self.ip+1)
+	self.SBNZ(a, JUNK, c, self.ip+1)
 }
 
 // MOV copy content of 'a' to 'b'.
 func (self *Assembler) MOV(a, b DataAddress) {
-	self.add(a, ZERO, b, self.ip+1)
+	self.SBNZ(a, ZERO, b, self.ip+1)
 }
 
 // BEQ branch execution to 'c' if contents of 'a' and 'b' are equal.
 func (self *Assembler) BEQ(a, b DataAddress, c ILabel) {
-	self.add(a, b, JUNK, self.ip+2)
+	self.SBNZ(a, b, JUNK, self.ip+2)
 	self.JMP(c)
 }
 
 // NOP do nothing
 func (self *Assembler) NOP() {
-	self.add(JUNK, JUNK, JUNK, self.ip+1)
+	self.SBNZ(JUNK, JUNK, JUNK, self.ip+1)
 }
 
 // DEC decrement content of 'a'
 func (self *Assembler) DEC(a DataAddress) {
-	self.add(a, ONE, a, self.ip+1)
+	self.SBNZ(a, ONE, a, self.ip+1)
 }
 
 func main() {
