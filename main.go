@@ -239,18 +239,42 @@ func (self *Assembler) assemble() []Instruction {
 // Sinthetized instructions
 //
 // The following methods define macro instructions for some usual
-// opcodes in terms of the SBNZ instruction. Unless stated the
-// execution continues in the next instruction.
+// opcodes in terms of the SBNZ instruction. Unless otherwise stated
+// the execution continues in the next instruction.
+
+// MOV copy content of 'a' to 'b'.
+func (self *Assembler) MOV(a, b DataAddress) {
+	self.SBNZ(a, ZERO, b, self.ip+1)
+}
+
+// ----------------------------------------------------- flow control
 
 // JMP incoditional jump to 'a'
 func (self *Assembler) JMP(a ILabel) {
 	self.SBNZ(ONE, ZERO, JUNK, a)
 }
 
+// BEQ branch execution to 'c' if contents of 'a' and 'b' are equal.
+func (self *Assembler) BEQ(a, b DataAddress, c ILabel) {
+	label := self.make_label()
+	self.SBNZ(a, b, JUNK, label)
+	self.JMP(c)
+	self.label(label)
+}
+
+// ------------------------------------------------- assorted opcodes
+
 // HLT halt execution
 func (self *Assembler) HLT() {
 	self.SBNZ(ONE, ZERO, JUNK, MaxProgramAddress)
 }
+
+// NOP do nothing
+func (self *Assembler) NOP() {
+	self.SBNZ(JUNK, JUNK, JUNK, self.ip+1)
+}
+
+// ----------------------------------------------- arithmetic opcodes
 
 // NEG negate the content of 'a' and store the result in 'b'. 'a' and
 // 'b' may point to the same data address.
@@ -265,30 +289,12 @@ func (self *Assembler) ADD(a, b, c DataAddress) {
 	self.SBNZ(a, JUNK, c, self.ip+1)
 }
 
-// MOV copy content of 'a' to 'b'.
-func (self *Assembler) MOV(a, b DataAddress) {
-	self.SBNZ(a, ZERO, b, self.ip+1)
-}
-
-// BEQ branch execution to 'c' if contents of 'a' and 'b' are equal.
-func (self *Assembler) BEQ(a, b DataAddress, c ILabel) {
-	label := self.make_label()
-	self.SBNZ(a, b, JUNK, label)
-	self.JMP(c)
-	self.label(label)
-}
-
-// NOP do nothing
-func (self *Assembler) NOP() {
-	self.SBNZ(JUNK, JUNK, JUNK, self.ip+1)
-}
-
 // DEC decrement content of 'a'
 func (self *Assembler) DEC(a DataAddress) {
 	self.SBNZ(a, ONE, a, self.ip+1)
 }
 
-// -------------------------------------------------- logical operators
+// -------------------------------------------------- logical opcodes
 
 // NOT perform the bitwise not on the contents of 'a' and stores the
 // result in 'b'.
