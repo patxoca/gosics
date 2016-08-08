@@ -4,7 +4,7 @@ This is a toy project to get into the go language. It implements a
 SBNZ based single instruction set computer.
 
 According to the entry in the
-`wikipedia <https://en.wikipedia.org/wiki/One_instruction_set_computer>_`,
+`wikipedia <https://en.wikipedia.org/wiki/One_instruction_set_computer>`_,
 a *one instruction set computer* (OISC), sometimes called an *ultimate
 reduced instruction set computer* (URISC), is an abstract machine that
 uses only one instruction – obviating the need for a machine language
