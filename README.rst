@@ -33,6 +33,10 @@ program block the words are 32 bits long (4 bytes == 4 pointers for
 the 4 operands) and for the data block the words are 8 bits long (a
 numerical value in the range -128..127).
 
+This design prevents the program from modifying itself and some tricky
+operations cannot be performed, but the intent of the project is
+learning go not assembly.
+
 For the program block the address 255 is reserved and can't contain an
 opcode. Jumping to that address halts the simulation. The
 ``MaxProgramAddress`` constant points to that address.
