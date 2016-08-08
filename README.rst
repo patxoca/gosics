@@ -74,16 +74,18 @@ possitive.
 
 .. code-block:: go
 
-    const COUNTER DataAddress = 3
+    const OP1 DataAddress = 0
+    const OP2 DataAddress = 1
     const RESULT DataAddress = 2
+    const COUNTER DataAddress = 3
 
     ass := NewAssembler()
 
-    ass.MOV(0, COUNTER)
+    ass.MOV(OP1, COUNTER)
     ass.MOV(ZERO, RESULT)
     ass.label("loop")
     ass.BEQ(COUNTER, ZERO, Label("exit_loop"))
-    ass.ADD(1, RESULT, RESULT)
+    ass.ADD(OP2, RESULT, RESULT)
     ass.DEC(COUNTER)
     ass.JMP(Label("loop"))
     ass.label("exit_loop")
