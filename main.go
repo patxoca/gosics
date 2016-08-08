@@ -128,6 +128,7 @@ func formatProgramAddress(a ProgramAddress) string {
 // conveniently formatted.
 func (self *Computer) PrintProgramMemory() {
 	fmt.Println("Program memory dump")
+	fmt.Println(" IP   A   B   C   D")
 	skipping := false
 	for i, tmp := range self.program_memory {
 		if tmp.a == 0 && tmp.b == 0 && tmp.c == 0 && tmp.d == 0 {

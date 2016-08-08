@@ -123,6 +123,7 @@ of SBNZ instructions and the memory dumps before and after the
 execution::
 
   Program memory dump
+   IP   A   B   C   D
     0   0   z   3   1
     1   z   z   2   2
     2   3   z   j   4
