@@ -1,0 +1,64 @@
+# .. -*- ispell-local-dictionary: "british" -*-
+#+TITLE: One instruction computer simulator
+#+AUTHOR: Alexis Roda
+#+EMAIL: alexis.roda.villalonga@gmail.com
+
+#+TODO: TODO STRT HOLD PAUS DONE(@)
+
+* Things to learn
+
+** useful tools
+
+- gogetdoc  : github.com/zmb3/gogetdoc
+- goimports : golang.org/x/tools/cmd/goimports
+- godef     : github.com/rogpeppe/godef
+
+** values vs pointers
+
+- efficency
+- mutability
+- usage in receivers
+
+** testing
+** debugging
+** writing packages
+** 3rd party package management
+
+- [[http://gopkg.in/][gopkg.in]]: versioned packages
+
+** how to do method polymorphism
+** there's something like virtualenv for go?
+
+Playing with $GOPATH may do the trick
+
+** emacs integration
+
+http://tleyden.github.io/blog/2014/05/22/configure-emacs-as-a-go-editor-from-scratch/
+
+- [X] autocompletion: [[https://github.com/nsf/gocode][gocode]]
+- [X] compilation
+- [X] eldoc [[https://github.com/syohex/emacs-go-eldoc][emacs-go-eldoc]]
+- [X] flymake: [[https://github.com/dougm/goflymake][goflymake]] (runs ~go build~) or [[http://marmalade-repo.org/packages/flymake-go][flymake-go]] (lighter)
+
+  currently trying flymake-go
+
+- [ ] [[https://docs.google.com/document/d/1SLk36YRjjMgKqe490mSRzOPYEDe0Y_WQNRv-EiFYUyw/view][go oracle]]
+- [ ] refactoring [[https://github.com/golang/tools/tree/master/refactor][refactor]]
+- [ ] snippets: [[https://github.com/dominikh/yasnippet-go][yasnippet-go]]
+
+
+* TODOs
+
+** TODO add annotations to program addresses
+
+Each program address may have one or more annotations (strings) that
+are displayed when dissasembling the program. Useful for making the
+output more readable.
+
+** TODO implement VM
+** TODO integrate cpp
+
+cpp (C preprocessor) may allow us to define macros for synthesized
+instructions
+
+** TODO implement UI
