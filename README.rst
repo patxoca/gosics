@@ -4,7 +4,7 @@ This is a toy project to get into the go language. It implements a
 SBNZ based single instruction set computer.
 
 According to the entry in the
-`wikipedia<https://en.wikipedia.org/wiki/One_instruction_set_computer>_`,
+`wikipedia <https://en.wikipedia.org/wiki/One_instruction_set_computer>_`,
 a *one instruction set computer* (OISC), sometimes called an *ultimate
 reduced instruction set computer* (URISC), is an abstract machine that
 uses only one instruction – obviating the need for a machine language
@@ -17,8 +17,8 @@ computing research.
 
 The instruction chosen for that simulator is ``SBNZ``, *Subtract and
 Branch if Not equal to Zero*: the ``SBNZ a, b, c, d`` instruction
-subtracts the contents at address ``a`` from the contents at address
-``b``, stores the result at address ``c``, and then, if the result is
+subtracts the contents at address ``b`` from the contents at address
+``a``, stores the result at address ``c``, and then, if the result is
 not 0, transfers control to address ``d`` (if the result is equal
 zero, execution proceeds to the next instruction in sequence).
 
@@ -27,11 +27,11 @@ Architecture
 ============
 
 In order to keep things simple the simulator has two independent
-address spaces for program code and data. Each address block is 256
-words long, so the pointers are 8 bits long (``uint8``). For the
-program block the words are 32 bits long (4 bytes == 4 pointers) and
-for the data block the words are 8 bits long (a numerical value in the
-range -128..127).
+address spaces for program code and for data. Each address block is
+256 words long, so the pointers are 8 bits long (``uint8``). For the
+program block the words are 32 bits long (4 bytes == 4 pointers for
+the 4 operands) and for the data block the words are 8 bits long (a
+numerical value in the range -128..127).
 
 For the program block the address 255 is reserved and can't contain an
 opcode. Jumping to that address halts the simulation. The
@@ -50,8 +50,9 @@ By the way, if we want to stop the simulation we can do::
 
   SBNZ ONE, ZERO, JUNK, MaxProgramAddress
 
-Wich will substract ZERO from ONE, store the result in JUNK, an since
-the result is 1 (!= 0), it will jump to the halt address.
+Wich will substract ZERO from ONE, store the result in JUNK. Since the
+result is 1 (!= 0), it will jump to the halt address stopping the
+execution.
 
 
 Current status
@@ -59,7 +60,7 @@ Current status
 
 At this point the ``Computer`` class is funcional, and there's a
 simple *in memory* ``Assembler``class which emulates complex
-instructions.
+instructions in terms of the ``SBNZ`` instruction.
 
 
 Example
