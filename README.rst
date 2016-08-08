@@ -59,7 +59,7 @@ Current status
 ==============
 
 At this point the ``Computer`` class is funcional, and there's a
-simple *in memory* ``Assembler``class which emulates complex
+simple *in memory* ``Assembler`` class which emulates complex
 instructions in terms of the ``SBNZ`` instruction.
 
 
