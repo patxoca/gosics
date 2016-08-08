@@ -288,6 +288,15 @@ func (self *Assembler) DEC(a DataAddress) {
 	self.SBNZ(a, ONE, a, self.ip+1)
 }
 
+// -------------------------------------------------- logical operators
+
+// NOT perform the bitwise not on the contents of 'a' and stores the
+// result in 'b'.
+func (self *Assembler) NOT(a, b DataAddress) {
+	self.ADD(a, ONE, b)
+	self.NEG(b, b)
+}
+
 func main() {
 	const COUNTER DataAddress = 3
 	const RESULT DataAddress = 2
