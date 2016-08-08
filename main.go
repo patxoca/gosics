@@ -193,6 +193,7 @@ type Assembler struct {
 	ip           ProgramAddress
 	labels       map[Label]ProgramAddress
 	instructions [MaxProgramAddress]PseudoInstruction
+	label_cnt    int
 }
 
 // NewAssembler create a new Assembler instance and initialized
@@ -208,6 +209,14 @@ func NewAssembler() Assembler {
 func (self *Assembler) SBNZ(a, b, c DataAddress, d ILabel) {
 	self.instructions[self.ip] = PseudoInstruction{a: a, b: b, c: c, d: d}
 	self.ip++
+}
+
+// make_label create a unique label. It's intended to be used in macro
+// instructions that use other macro instructions. Avoids the
+// requirement of knowing before hand how much instructions to skip.
+func (self *Assembler) make_label() Label {
+	self.label_cnt++
+	return Label(fmt.Sprintf("__label_%04d", self.label_cnt))
 }
 
 // label defines a label named 'label' for the current instruction
@@ -262,8 +271,10 @@ func (self *Assembler) MOV(a, b DataAddress) {
 
 // BEQ branch execution to 'c' if contents of 'a' and 'b' are equal.
 func (self *Assembler) BEQ(a, b DataAddress, c ILabel) {
-	self.SBNZ(a, b, JUNK, self.ip+2)
+	label := self.make_label()
+	self.SBNZ(a, b, JUNK, label)
 	self.JMP(c)
+	self.label(label)
 }
 
 // NOP do nothing
