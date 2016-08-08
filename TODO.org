@@ -3,7 +3,7 @@
 #+AUTHOR: Alexis Roda
 #+EMAIL: alexis.roda.villalonga@gmail.com
 
-#+TODO: TODO STRT HOLD PAUS DONE(@)
+#+TODO: TODO PAUS(@) DONE(@)
 
 * Things to learn
 
@@ -49,16 +49,29 @@ http://tleyden.github.io/blog/2014/05/22/configure-emacs-as-a-go-editor-from-scr
 
 * TODOs
 
+** DONE implement VM
+   - State "DONE"       from "PAUS"       [2016-08-08 dl 21:17]
+   CLOCK: [2016-08-08 dl 21:17]--[2016-08-08 dl 21:17] =>  0:00
+
+** TODO add tests
+
+- what happens if a label already exists?
+
 ** TODO add annotations to program addresses
 
 Each program address may have one or more annotations (strings) that
 are displayed when dissasembling the program. Useful for making the
 output more readable.
 
-** TODO implement VM
-** TODO integrate cpp
+
+** PAUS integrate cpp
+   - State "PAUS"       from "TODO"       [2016-08-08 dl 21:19] \\
+     Is not so simple, macro instructions may require knowing the current
+     IP in order to generate jumps.
 
 cpp (C preprocessor) may allow us to define macros for synthesized
 instructions
+
+
 
 ** TODO implement UI
