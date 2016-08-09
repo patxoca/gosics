@@ -289,9 +289,33 @@ func (self *Assembler) ADD(a, b, c DataAddress) {
 	self.SBNZ(a, JUNK, c, self.ip+1)
 }
 
+// SUB substract contets of 'b' from 'a' and stores the result in 'c'.
+func (self *Assembler) SUB(a, b, c DataAddress) {
+	self.SBNZ(a, b, c, self.ip+1)
+}
+
+func (self *Assembler) INC(a DataAddress) {
+	self.ADD(a, ONE, a)
+}
+
 // DEC decrement content of 'a'
 func (self *Assembler) DEC(a DataAddress) {
 	self.SBNZ(a, ONE, a, self.ip+1)
+}
+
+// MUL multiplies content of 'a' by 'b' and stores the result in 'c'.
+// The content of 'a' is lost. Does not check for overflow.
+func (self *Assembler) MUL(a, b, c DataAddress) {
+	loop := self.make_label()
+	exit_loop := self.make_label()
+
+	self.MOV(ZERO, c)
+	self.label(loop)
+	self.BEQ(a, ZERO, exit_loop)
+	self.ADD(b, c, c)
+	self.DEC(a)
+	self.JMP(loop)
+	self.label(exit_loop)
 }
 
 // -------------------------------------------------- logical opcodes
@@ -307,14 +331,7 @@ func main() {
 	const COUNTER DataAddress = 3
 	const RESULT DataAddress = 2
 	ass := NewAssembler()
-	ass.MOV(0, COUNTER)
-	ass.MOV(ZERO, RESULT)
-	ass.label("loop")
-	ass.BEQ(COUNTER, ZERO, Label("exit_loop"))
-	ass.ADD(1, RESULT, RESULT)
-	ass.DEC(COUNTER)
-	ass.JMP(Label("loop"))
-	ass.label("exit_loop")
+	ass.MUL(0, 1, 2)
 	ass.HLT()
 
 	data := []DataCell{
