@@ -60,23 +60,23 @@ func NewAssembler() Assembler {
 	return ass
 }
 
-// SBNZ adds a new SBNZ instruction to the program with a program
-// address possibly unresolved.
+// SBNZ adds a new SBNZ instruction to the program, with a program
+// address possibly unresolved, and advances the IP.
 func (self *Assembler) SBNZ(a, b, c vm.DataAddress, d ILabel) {
 	self.instructions[self.ip] = PseudoInstruction{a: a, b: b, c: c, d: d}
 	self.ip++
 }
 
 // make_label create a unique label. It's intended to be used in macro
-// instructions that use other macro instructions. Avoids the
-// requirement of knowing before hand how much instructions to skip.
+// instructions that use other macro instructions and need to branch.
+// Avoids the requirement of knowing before hand how much instructions
+// to skip.
 func (self *Assembler) make_label() Label {
 	self.label_cnt++
 	return Label(fmt.Sprintf("__label_%04d", self.label_cnt))
 }
 
-// label defines a label named 'label' for the current instruction
-// pointer
+// label defines a label pointing to the current IP.
 func (self *Assembler) label(label Label) {
 	self.labels[label] = self.ip
 }
@@ -149,6 +149,7 @@ func (self *Assembler) SUB(a, b, c vm.DataAddress) {
 	self.SBNZ(a, b, c, self.ip+1)
 }
 
+// INC increments content of 'a'
 func (self *Assembler) INC(a vm.DataAddress) {
 	self.ADD(a, vm.ONE, a)
 }
