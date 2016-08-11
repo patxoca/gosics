@@ -16,8 +16,6 @@ import (
 //
 //
 
-type ProgramAddress vm.ProgramAddress
-
 // The ILabel interface is provided by all types that can be used as
 // addresses in an assembler program, either literal addresses
 // (ProgramAddress) or symbolic addresses (Label).
@@ -26,6 +24,7 @@ type ILabel interface {
 }
 
 type Label string
+type ProgramAddress vm.ProgramAddress
 
 // GetAddress return the address
 func (self ProgramAddress) GetAddress(a Assembler) vm.ProgramAddress {
