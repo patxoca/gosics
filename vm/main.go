@@ -1,157 +1,78 @@
 package vm
 
-import (
-	"fmt"
-)
-
 ////////////////////////////////////////////////////////////////////////
 //
 // the virtual machine
 //
-// - Separated address spaces for program and data.
+// - Unified address spaces for program and data.
 //
-// - Uses uint8 to index memory, so each block of memory is 256 words
-//   long.
+// - big endian
 //
-// - words in the program block are of type Instruction (32 bits long)
-//   while words in data block are of type DataCell (8 bits long).
+// - Pointers are 16 bits long
+//
+// - Operands are 16 bit long, signed
 
-type ProgramAddress uint8
-type DataAddress uint8
+type Address uint16
+type Operand int16
 
-const MaxProgramAddress = ProgramAddress(^ProgramAddress(0))
-const MaxDataAddress = ^DataAddress(0)
-
-// NOTE: maybe only ONE is strictly required, ZERO is just ONE - ONE
-const JUNK DataAddress = MaxDataAddress
-const ONE DataAddress = MaxDataAddress - 2
-const ZERO DataAddress = MaxDataAddress - 1
-
-type Instruction struct {
-	a DataAddress
-	b DataAddress
-	c DataAddress
-	d ProgramAddress
-}
-
-func NewInstruction(a, b, c DataAddress, d ProgramAddress) Instruction {
-	return Instruction{a: a, b: b, c: c, d: d}
-}
-
-type DataCell int8
+const MaxAddress = Address(^Address(0))
+const MemorySize = uint(MaxAddress) + 1
+const HALT Address = MaxAddress
+const bytesPerAddress = 2
+const bytesPerOperand = 2
 
 type Computer struct {
-	ip             ProgramAddress
-	program_memory [MaxProgramAddress]Instruction
-	data_memory    [uint(MaxDataAddress) + 1]DataCell
+	ip     Address
+	memory [MemorySize]uint8
 }
 
-// LoadProgram loads the code into the program memory
-func (self *Computer) LoadProgram(code []Instruction) {
-	for i, instr := range code {
-		self.program_memory[i] = instr
+// LoadMemory loads the memory image into memory
+func (self *Computer) LoadMemory(data []uint8) {
+	for i, c := range data {
+		self.memory[i] = c
 	}
-}
-
-// LoadData load the data into the data memory. Takes care of
-// initializing the ZERO and ONE addresses, after the data has been
-// loaded, so it may overwrite those memory cells.
-func (self *Computer) LoadData(data []DataCell) {
-	for i, cell := range data {
-		self.data_memory[i] = cell
-	}
-	self.data_memory[ZERO] = 0
-	self.data_memory[ONE] = 1
 }
 
 // Halted return true if the computer is halted
 func (self *Computer) Halted() bool {
-	return (self.ip == MaxProgramAddress)
+	return (self.ip == HALT)
 }
 
-// Step if the computer is not halted executes the next instruction,
-// updates the IP pointer and returns
+func (self *Computer) fetchAddress(p Address) Address {
+	res := Address(0)
+	for i := 0; i < bytesPerAddress; i++ {
+		res = (res << 8) | Address(self.memory[int(p)+i])
+	}
+	return res
+}
+
+func (self *Computer) fetchOperand(p Address) Operand {
+	res := Operand(0)
+	for i := 0; i < bytesPerOperand; i++ {
+		res = (res << 8) | Operand(self.memory[int(p)+i])
+	}
+	return res
+}
+
+func (self *Computer) putOperand(p Address, o Operand) {
+	for i := bytesPerOperand - 1; i >= 0; i-- {
+		self.memory[int(p)+i] = uint8(o & Operand(0xFF))
+		o = o >> 8
+	}
+}
+
+// Step execute the next instruction and updates the IP pointer, if
+// the computer is not halted
 func (self *Computer) Step() {
 	if !self.Halted() {
-		instr := self.program_memory[self.ip]
-		a := self.data_memory[instr.a]
-		b := self.data_memory[instr.b]
+		a := self.fetchOperand(self.fetchAddress(self.ip))
+		b := self.fetchOperand(self.fetchAddress(self.ip + bytesPerAddress))
 		r := a - b
-		self.data_memory[instr.c] = r
+		self.putOperand(self.fetchAddress(self.ip+2*bytesPerAddress), r)
 		if r != 0 {
-			self.ip = instr.d
+			self.ip = self.fetchAddress(self.ip + 3*bytesPerAddress)
 		} else {
-			self.ip++
-		}
-	}
-}
-
-// PrintDataMemory prints the first n bytes of the data memory plus
-// the three higher bytes
-func (self *Computer) PrintDataMemory(n DataAddress) {
-	if n >= ONE {
-		n = ONE - 1
-	}
-	fmt.Println("IP=", self.ip)
-	for i, cell := range self.data_memory[:n] {
-		fmt.Printf("%02X ", cell)
-		if (i+1)%28 == 0 {
-			fmt.Println("")
-		}
-	}
-	if n < ONE-1 {
-		fmt.Print("... ")
-	}
-	fmt.Printf("%02x %02x %02x", self.data_memory[ONE], self.data_memory[ZERO], self.data_memory[JUNK])
-	fmt.Println("")
-}
-
-// formatDataAddress if 'a' points to some of the reserved addresses a
-// symbolic representation is used (j for JUNK, o for ONE and z for
-// ZERO) otherwise the numerical representation of the address is used.
-func formatDataAddress(a DataAddress) string {
-	switch a {
-	case JUNK:
-		return "j"
-	case ONE:
-		return "o"
-	case ZERO:
-		return "z"
-	default:
-		return fmt.Sprintf("%d", a)
-	}
-}
-
-// formatProgramAddress if 'a' points to the halt address a symbolic
-// representation is used (h) otherwise the numerical representation
-// of the address is used.
-func formatProgramAddress(a ProgramAddress) string {
-	if a == MaxProgramAddress {
-		return "h"
-	} else {
-		return fmt.Sprintf("%d", a)
-	}
-}
-
-// PrintProgramMemory prints to stdout the program memory contents
-// conveniently formatted.
-func (self *Computer) PrintProgramMemory() {
-	fmt.Println("Program memory dump")
-	fmt.Println(" IP   A   B   C   D")
-	skipping := false
-	for i, tmp := range self.program_memory {
-		if tmp.a == 0 && tmp.b == 0 && tmp.c == 0 && tmp.d == 0 {
-			if !skipping {
-				fmt.Println("    ...")
-				skipping = true
-			}
-		} else {
-			skipping = false
-			a := formatDataAddress(tmp.a)
-			b := formatDataAddress(tmp.b)
-			c := formatDataAddress(tmp.c)
-			d := formatProgramAddress(tmp.d)
-			fmt.Printf("%3d %3s %3s %3s %3s\n", i, a, b, c, d)
+			self.ip += 4 * bytesPerAddress
 		}
 	}
 }
