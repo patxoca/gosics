@@ -1,5 +1,7 @@
 package vm
 
+import "fmt"
+
 ////////////////////////////////////////////////////////////////////////
 //
 // the virtual machine
@@ -75,4 +77,12 @@ func (self *Computer) Step() {
 			self.ip += 4 * bytesPerAddress
 		}
 	}
+}
+
+func (self *Computer) Print(n int) {
+	fmt.Printf("%5d: ", self.ip)
+	for _, v := range self.memory[:n] {
+		fmt.Printf("%03d ", v)
+	}
+	fmt.Println("")
 }
