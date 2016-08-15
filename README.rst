@@ -56,17 +56,13 @@ file, may be implemented.
 Labels
 ------
 
-The assembler supports both literal and symbolic adresses, labels:
+The assembler supports both literal and symbolic adresses, labels::
 
-.. code-block:: go
-   :linenos:
+   SBNZ DATA, ...
+   ; mode code here
 
-   as := assembler.New()
-   ...
-   as.SBNZ(Label("DATA"), ...)
-   ...
-   as.Label("DATA")
-   ...
+   DATA:
+   ; data here
 
 In line 5 we define the label ``DATA`` pointing to some address. Here
 ``Label`` is a method of the assembler object, it stores the label and
@@ -84,15 +80,10 @@ Directives
 ----------
 
 The assembler defines the directives ``DB`` and ``DD`` to insert data
-into the program.
+into the program::
 
-.. code-block:: go
-   :linenos:
-
-   as := assembler.New()
-   ...
-   as.Label("DATA")
-   as.DD(1, 2, ...)
+   DATA:
+   DD 1 2
 
 ``DB`` inserts a sequence of bytes while ``DD`` inserts a sequence of
 two bytes (*doubles*).
