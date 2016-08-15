@@ -40,6 +40,14 @@ func (self *Computer) Halted() bool {
 	return (self.ip == HALT)
 }
 
+func (self *Computer) Peek(a Address) Operand {
+	return self.fetchOperand(a)
+}
+
+func (self *Computer) IP() Address {
+	return self.ip
+}
+
 func (self *Computer) fetchAddress(p Address) Address {
 	res := Address(0)
 	for i := 0; i < bytesPerAddress; i++ {

@@ -1,6 +1,7 @@
 // This package implements an in memory assembler:
 //
-// - supports labels to reference memory addresses
+// - supports labels to reference memory addresses. Labels prefixed
+// with double underscore are reserved for internal use.
 //
 // - stores SBNZ instructions, maybe with unresolved references to
 // addresses
@@ -41,9 +42,17 @@ const maxAddress = Address(vm.MaxAddress)
 // HLT is the address to jump to in order to halt the computer
 const HLT = maxAddress
 
-const _ONE Address = maxAddress - 1
-const _ZERO Address = maxAddress - 3
-const _JUNK Address = maxAddress - 5
+// ONE is a label to a memory position containing a 1
+const ONE = Label("__ONE")
+
+// ZERO is a label to a memory position containing a 0. It's not
+// strictrly required since we can get a 0 executing SBNZ ONE, ONE, x,
+// y, but it's convenient
+const ZERO = Label("__ZERO")
+
+// JUNK is a label to a memory position where we can store temporary
+// results
+const JUNK = Label("__JUNK")
 
 // Assembler in memory assembler
 type Assembler struct {
@@ -58,18 +67,18 @@ type Assembler struct {
 // addresses in an assembler program, either literal addresses
 // (Address) or symbolic addresses (Label).
 type labeler interface {
-	getAddress(a Assembler) Address
+	getAddress(a *Assembler) Address
 }
 
 // getAddress return the address for a literal address
-func (self Address) getAddress(a Assembler) Address {
+func (self Address) getAddress(a *Assembler) Address {
 	return self
 }
 
 // getAddress perform a lookup for the label in the label table and
 // return the corresponding address. If the label is not found adds it
 // to the unresolved-labels table and return a fake address.
-func (self Label) getAddress(a Assembler) Address {
+func (self Label) getAddress(a *Assembler) Address {
 	address, ok := a.labels[self]
 	if ok {
 		return address
@@ -89,6 +98,15 @@ func New() Assembler {
 	ass := Assembler{}
 	ass.labels = make(map[Label]Address)
 	ass.unresolved = make(map[Label]*list.List)
+	start := Label("__start")
+	ass.SBNZ(ONE, ZERO, JUNK, start)
+	ass.Label(ONE)
+	ass.DD(1)
+	ass.Label(ZERO)
+	ass.DD(0)
+	ass.Label(JUNK)
+	ass.DD(0)
+	ass.Label(start)
 	return ass
 }
 
@@ -158,9 +176,123 @@ func (self *Assembler) DD(words ...uint16) {
 // IP.
 func (self *Assembler) SBNZ(a, b, c, d labeler) {
 	for _, v := range [4]labeler{a, b, c, d} {
-		addr := v.getAddress(*self)
+		addr := v.getAddress(self)
 		self.memory[self.ip] = uint8(addr >> 8)
 		self.memory[self.ip+1] = uint8(addr & 0xFF)
 		self.ip += 2
 	}
 }
+
+// Sinthetized instructions
+//
+// The following methods define macro instructions for some usual
+// opcodes in terms of the SBNZ instruction. Unless otherwise stated
+// the execution continues in the next instruction.
+
+// MOV copy content of 'a' to 'b'.
+func (self *Assembler) MOV(src, dst labeler) {
+	label := self.uniqLabel()
+	self.SBNZ(src, ZERO, dst, label)
+	self.Label(label)
+}
+
+// ----------------------------------------------------- flow control
+
+// JMP incoditional jump to 'a'
+func (self *Assembler) JMP(a labeler) {
+	self.SBNZ(ONE, ZERO, JUNK, a)
+}
+
+// BEQ branch execution to 'c' if contents of 'a' and 'b' are equal.
+func (self *Assembler) BEQ(a, b, dst labeler) {
+	label := self.uniqLabel()
+	self.SBNZ(a, b, JUNK, label)
+	self.JMP(dst)
+	self.Label(label)
+}
+
+// ------------------------------------------------- assorted opcodes
+
+// HLT halt execution
+func (self *Assembler) HLT() {
+	self.SBNZ(ONE, ZERO, JUNK, maxAddress)
+}
+
+// NOP do nothing
+func (self *Assembler) NOP() {
+	label := self.uniqLabel()
+	self.SBNZ(JUNK, JUNK, JUNK, label)
+	self.Label(label)
+}
+
+// ----------------------------------------------- arithmetic opcodes
+
+// NEG negate the content of src and store the result in dst. src and
+// dst may point to the same address.
+func (self *Assembler) NEG(src, dst labeler) {
+	label := self.uniqLabel()
+	self.SBNZ(ZERO, src, dst, label)
+	self.Label(label)
+}
+
+// ADD add content of a to content of b and store the result in
+// dst. a, b and c may point to the same data address.
+func (self *Assembler) ADD(a, b, dst labeler) {
+	label := self.uniqLabel()
+	self.NEG(b, JUNK)
+	self.SBNZ(a, JUNK, dst, label)
+	self.Label(label)
+}
+
+// SUB substract content of b from a and stores the result in dst.
+func (self *Assembler) SUB(a, b, dst labeler) {
+	label := self.uniqLabel()
+	self.SBNZ(a, b, dst, label)
+	self.Label(label)
+}
+
+// INC increments content of 'a'
+func (self *Assembler) INC(a labeler) {
+	self.ADD(a, ONE, a)
+}
+
+// DEC decrement content of 'a'
+func (self *Assembler) DEC(a labeler) {
+	label := self.uniqLabel()
+	self.SBNZ(a, ONE, a, label)
+	self.Label(label)
+}
+
+// // MUL multiplies content of 'a' by 'b' and stores the result in 'c'.
+// // The content of 'a' is lost. Does not check for overflow.
+// func (self *Assembler) MUL(a, b, c vm.DataAddress) {
+// 	loop := self.make_label()
+// 	exit_loop := self.make_label()
+
+// 	self.MOV(vm.ZERO, c)
+// 	self.label(loop)
+// 	self.BEQ(a, vm.ZERO, exit_loop)
+// 	self.ADD(b, c, c)
+// 	self.DEC(a)
+// 	self.JMP(loop)
+// 	self.label(exit_loop)
+// }
+
+// -------------------------------------------------- logical opcodes
+
+// NOT perform the bitwise not on the contents of 'a' and stores the
+// result in 'b'.
+func (self *Assembler) NOT(a, b labeler) {
+	self.ADD(a, ONE, b)
+	self.NEG(b, b)
+}
+
+// // --------------------------------------------- emulating other OISC
+
+// // SUBLEQ Subtract and branch if less than or equal to zero OISC.
+// // Substrat content of address 'a' from content of 'b' and stores the
+// // result en address 'c'. If the result is less than or equal to zero
+// // jump to address 'c'.
+// func (self *Assembler) SUBLEQ(a, b vm.DataAddress, c Address) {
+// 	// not sure how to test 'value < 0'
+// }
