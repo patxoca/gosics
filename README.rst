@@ -26,49 +26,135 @@ zero, execution proceeds to the next instruction in sequence).
 Architecture
 ============
 
-In order to keep things simple the simulator has two independent
-address spaces for program code and for data. Each address block is
-256 words long, so the pointers are 8 bits long (``uint8``). For the
-program block the words are 32 bits long (4 bytes == 4 pointers for
-the 4 operands) and for the data block the words are 8 bits long (a
-numerical value in the range -128..127).
+The ``Computer`` has 64Kb of memory shared by both program an data.
+The memory is big endian.
 
-This design prevents the program from modifying itself and some tricky
-operations cannot be performed, but the intent of the project is
-learning go not assembly.
+Each instruction takes 8 bytes of memory (4 pointers * 2
+bytes/pointer). The instruction ``SBNZ 0x0123, 0x4567, 0x89AB,
+0xCDEF`` is stored in memory as::
 
-For the program block the address 255 is reserved and can't contain an
-opcode. Jumping to that address halts the simulation. The
-``MaxProgramAddress`` constant points to that address.
+  i    i+1  i+2  i+3  i+4  i+5  i+6  i+7
+  0x01 0x23 0x45 0x67 0x89 0xAB 0xCD 0xEF
 
-Although not strictly required, for the data block there are three
-reserved addresses:
+Each *value* take 2 bytes of memory. The value ``01234`` is stored
+in memory as::
 
-- 253: contains a 1
-- 254: contains a 0
-- 255: used for intermediate results
+  i    i+1
+  0x12 0x32
 
-The constants ``ONE``, ``ZERO`` and ``JUNK`` point to those addresses.
-
-By the way, if we want to stop the simulation we can do::
-
-  SBNZ ONE, ZERO, JUNK, MaxProgramAddress
-
-Wich will substract ZERO from ONE, store the result in JUNK. Since the
-result is 1 (!= 0), it will jump to the halt address stopping the
-execution.
+The address 65535 (0xFFFF) is special, jumping to that address halts
+the computer.
 
 
-Current status
-==============
+The assembler
+=============
 
-At this point the ``Computer`` class is funcional, and there's a
-simple *in memory* ``Assembler`` class which emulates complex
-instructions in terms of the ``SBNZ`` instruction.
+At this point there's an *in memory* assembler that helps writing
+programs. In a future a real assembler, that parses the program from a
+file, may be implemented.
+
+Labels
+------
+
+The assembler supports both literal and symbolic adresses, labels:
+
+.. code-block:: go
+   :linenos:
+
+   as := assembler.New()
+   ...
+   as.SBNZ(Label("DATA"), ...)
+   ...
+   as.Label("DATA")
+   ...
+
+In line 5 we define the label ``DATA`` pointing to some address. Here
+``Label`` is a method of the assembler object, it stores the label and
+the address it points to.
+
+In line 3 we reference the memory address pointed to by ``DATA``. Here
+``Label`` is a type implementing the ``labeler`` interface (a type
+that is able to compute an address).
+
+To avoid collisions, labels starting by a double underscore are
+reserved for the assembler.
+
+
+Directives
+----------
+
+The assembler defines the directives ``DB`` and ``DD`` to insert data
+into the program.
+
+.. code-block:: go
+   :linenos:
+
+   as := assembler.New()
+   ...
+   as.Label("DATA")
+   as.DD(1, 2, ...)
+
+``DB`` inserts a sequence of bytes while ``DD`` inserts a sequence of
+two bytes (*doubles*).
+
+
+Macro instructions
+------------------
+
+The assembler define some macro instructions that generate code for
+some usual opcodes in terms of the SBNZ instructions:
+
+- ``MOV(src, dst)``: move content of ``src`` to ``dst``
+
+  .. code-block:: asm
+
+     SBNZ src, __ZERO, dst, __next
+     __next:
+
+
+- ``JMP(dst)``: jump inconditionally to ``dst``
+
+  .. code-block:: asm
+
+     SBNZ __ONE, __ZERO, __JUNK, dst
+
+
+Memory layout
+-------------
+
+For the sake of convenience the assembler pre-allocates 6 bytes of
+memory for 3 operands and defines 3 labels pointing to them:
+
+- ``__ONE``: contains a 1
+
+- ``__ZERO``: contains a 0. That's not strictly required since we can
+  get a 0 substracting 1 from 1, buts it's convenient.
+
+- ``__JUNK``: temporary storage, use with care.
+
+When writing a program we can use the constants ``assembler.ONE``,
+``assembler.ZERO`` and ``assembler.JUNK`` to reference those
+addresses.
+
+The assembler inserts the following prologue in each program:
+
+.. code-block:: asm
+
+   SBNZ __ONE, __ZERO, __JUNK, __start
+   __ONE:
+   DD 0x0001
+   __ZERO:
+   DD 0x0000
+   __JUNK:
+   DD 0x0000
+   __start:
+
+the first instruction jumps over the data block and the program code
+starts at address ``__start``.
 
 
 Example
-=======
+-------
 
 First we need to create an assembler and *write* the program. In this
 example we'll multiply the numbers in adresses 0 and 1, by repeated
@@ -78,69 +164,50 @@ possitive.
 
 .. code-block:: go
 
-    const OP1 DataAddress = 0
-    const OP2 DataAddress = 1
-    const RESULT DataAddress = 2
-    const COUNTER DataAddress = 3
+    // pre define labels for readability
+    OP1 := assembler.Label("OP1")
+    OP2 := assembler.Label("OP2")
+    DST := assembler.Label("DST")
+    CNT := assembler.Label("CNT")
+    LOO := assembler.Label("loop")
+    ELO := assembler.Label("exit_loop")
 
-    ass := NewAssembler()
+    ass := assembler.New()
 
-    ass.MOV(OP1, COUNTER)
-    ass.MOV(ZERO, RESULT)
-    ass.label("loop")
-    ass.BEQ(COUNTER, ZERO, Label("exit_loop"))
-    ass.ADD(OP2, RESULT, RESULT)
-    ass.DEC(COUNTER)
-    ass.JMP(Label("loop"))
-    ass.label("exit_loop")
+    ass.MOV(OP1, CNT)
+    ass.MOV(assembler.ZERO, DST)
+    ass.Label(LOO)
+    ass.BEQ(CNT, assembler.ZERO, ELO)
+    ass.ADD(OP2, DST, DST)
+    ass.DEC(CNT)
+    ass.JMP(LOO)
+    ass.Label(ELO)
     ass.HLT()
 
-We need the initial contents for the data memory:
+    ass.Label(OP1)
+    ass.DD(0x01)
+    ass.Label(OP2)
+    ass.DD(0x02)
+    ass.Label(DST)
+    ass.DD(0x00)
+    ass.Label(CNT)
+    ass.DD(0x00)
 
-.. code-block:: go
-
-    data := []DataCell{
-        2, 3,
-    }
-
-Then we create the computer and load both the program and the data:
+Then we create the computer and load it's memory:
 
 .. code-block:: go
 
     computer := new(Computer)
-    computer.load_program(ass.assemble())
-    computer.load_data(data)
+    computer.LoadMemory(ass.Assemble())
 
 And finally we can run the program:
 
 .. code-block:: go
 
-    computer.PrintProgramMemory()
-    computer.PrintDataMemory(4)
-    for !computer.Halted() {
-        computer.Step()
-    }
-    computer.PrintDataMemory(4)
+	c.Print(N)
+	for !c.Halted() {
+		c.Step()
+		c.Print(N)
+	}
 
-And we should get in the screen the result: the program dump in terms
-of SBNZ instructions and the memory dumps before and after the
-execution::
-
-  Program memory dump
-   IP   A   B   C   D
-    0   0   z   3   1
-    1   z   z   2   2
-    2   3   z   j   4
-    3   o   z   j   8
-    4   z   2   j   5
-    5   1   j   2   6
-    6   3   o   3   7
-    7   o   z   j   2
-    8   o   z   j   h
-      ...
-  IP= 0
-  02 03 00 00 ... 01 00 00
-  IP= 255
-  02 03 06 00 ... 01 00 01
-
-So 2 * 3 = 6, great!!
+And we'll get the result at address 0x5a, 2 * 3 = 6, great!!
