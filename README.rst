@@ -168,7 +168,7 @@ possitive.
     ass.HLT()
 
     ass.Label(OP1)
-    ass.DD(0x01)
+    ass.DD(0x03)
     ass.Label(OP2)
     ass.DD(0x02)
     ass.Label(DST)
