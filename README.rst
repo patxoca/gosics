@@ -64,14 +64,6 @@ The assembler supports both literal and symbolic adresses, labels::
    DATA:
    ; data here
 
-In line 5 we define the label ``DATA`` pointing to some address. Here
-``Label`` is a method of the assembler object, it stores the label and
-the address it points to.
-
-In line 3 we reference the memory address pointed to by ``DATA``. Here
-``Label`` is a type implementing the ``labeler`` interface (a type
-that is able to compute an address).
-
 To avoid collisions, labels starting by a double underscore are
 reserved for the assembler.
 
