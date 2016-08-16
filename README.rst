@@ -246,12 +246,13 @@ And finally we can run the program:
         c.Print(N)
     }
 
-And we'll get the result at address 0x5a, 2 * 3 = 6, great!!
+And we'll get the result at address 0xB6, 2 * 3 = 6, great!!
 
 
 The memory contents, conveniently annotated for readability, after
 loading the previous program are::
 
+  ;   jump to __start
   00: 0008 000a 000c 006a
 
       ; __ONE:
@@ -262,7 +263,7 @@ loading the previous program are::
   0C: 0000
 
       ; __push_operand:
-  0E: 0faba
+  0E: faba
 
       ; __SP:
   10: fffe
@@ -280,7 +281,7 @@ loading the previous program are::
   4A: 0010 000c 0010 0052
   52: 0010 000a 005a 005a
   5A: fffe 000a 000e 0062
-  62: 0008 000a 000c ffff ; __pop_ret points to ffff
+  62: 0008 000a 000c ffff ; __pop_ret points to 68
 
       ; end of preamble
 
