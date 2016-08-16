@@ -100,12 +100,48 @@ func New() Assembler {
 	ass.unresolved = make(map[Label]*list.List)
 	start := Label("__start")
 	ass.SBNZ(ONE, ZERO, JUNK, start)
+
 	ass.Label(ONE)
 	ass.DD(1)
 	ass.Label(ZERO)
 	ass.DD(0)
 	ass.Label(JUNK)
 	ass.DD(0)
+
+	ass.Label(Label("__push_operand"))
+	ass.DD(0xFABA)
+	ass.Label(Label("__SP"))
+	ass.DD(uint16(maxAddress - 1))
+	ass.Label(Label("__push"))
+	// copy SP in the C parameter of the next instruction
+	ass.SBNZ(Label("__SP"), ZERO, ass.ip+12, ass.ip+8)
+	// copy value from __push_operand to the stack. The C operand has
+	// been overwriten so that it point to the top of the stack
+	ass.SBNZ(Label("__push_operand"), ZERO, maxAddress-1, ass.ip+8)
+	// decrease the stack pointer twice
+	ass.SBNZ(Label("__SP"), ONE, Label("__SP"), ass.ip+8)
+	ass.SBNZ(Label("__SP"), ONE, Label("__SP"), ass.ip+8)
+	// "return" to the caller. He caller must copy in __push_ret the
+	// return address
+	ass.DD(uint16(ass.labels[ONE]), uint16(ass.labels[ZERO]), uint16(ass.labels[JUNK]))
+	ass.Label(Label("__push_ret"))
+	ass.DD(uint16(0xFFFF))
+
+	ass.Label(Label("__pop"))
+	// increase the stack pointer twice, first we need -1 (SP - -1 ==
+	// SP + 1)
+	ass.SBNZ(ZERO, ONE, JUNK, ass.ip+8)
+	ass.SBNZ(Label("__SP"), JUNK, Label("__SP"), ass.ip+8)
+	ass.SBNZ(Label("__SP"), JUNK, Label("__SP"), ass.ip+8)
+	// copy SP in the A parameter of the next instruction
+	ass.SBNZ(Label("__SP"), ZERO, ass.ip+8, ass.ip+8)
+	// copy the value from the stack to __push_operand
+	ass.SBNZ(maxAddress-1, ZERO, Label("__push_operand"), ass.ip+8)
+	// return to the "caller"
+	ass.DD(uint16(ass.labels[ONE]), uint16(ass.labels[ZERO]), uint16(ass.labels[JUNK]))
+	ass.Label(Label("__pop_ret"))
+	ass.DD(uint16(0xFFFF))
+
 	ass.Label(start)
 	return ass
 }
@@ -121,6 +157,7 @@ func (self *Assembler) uniqLabel() Label {
 }
 
 // Label define a label pointing to the current IP.
+// TODO: maybe the argument can be just a string
 func (self *Assembler) Label(label Label) {
 	self.labels[label] = self.ip
 }
@@ -277,6 +314,34 @@ func (self *Assembler) DEC(a labeler) {
 // 	self.JMP(loop)
 // 	self.label(exit_loop)
 // }
+
+// ------------------------------------------------- stack management
+//
+// stack management is a bit tricky
+
+func (self *Assembler) PUSH(a labeler) {
+	data := self.uniqLabel()
+	exit := self.uniqLabel()
+	self.SBNZ(a, ZERO, Label("__push_operand"), self.ip+8)
+	self.SBNZ(data, ZERO, Label("__push_ret"), self.ip+8)
+	self.SBNZ(ONE, ZERO, JUNK, Label("__push"))
+	self.SBNZ(ONE, ZERO, JUNK, exit)
+	self.Label(data)
+	self.DD(uint16(self.ip - 8))
+	self.Label(exit)
+}
+
+func (self *Assembler) POP(a labeler) {
+	data := self.uniqLabel()
+	exit := self.uniqLabel()
+	self.SBNZ(data, ZERO, Label("__pop_ret"), self.ip+8)
+	self.SBNZ(ONE, ZERO, JUNK, Label("__pop"))
+	self.SBNZ(Label("__push_operand"), ZERO, a, self.ip+8)
+	self.SBNZ(ONE, ZERO, JUNK, exit)
+	self.Label(data)
+	self.DD(uint16(self.ip - 16))
+	self.Label(exit)
+}
 
 // -------------------------------------------------- logical opcodes
 

@@ -101,6 +101,59 @@ some usual opcodes in terms of the SBNZ instructions:
 
      SBNZ __ONE, __ZERO, __JUNK, dst
 
+Run ``go doc assembler.Assembler`` to get a listing of all
+opcodes.
+
+The ``PUSH`` and ``POP`` macro instructions are more interesting,
+those instructions modify the program in order to simulate the stack.
+There's some suport code in the program's *preamble* and two opcodes.
+
+Here's the suport code for the ``PUSH`` opcode:
+
+.. code-block:: asm
+   :linenos:
+
+   __push_operand:
+     DD 0
+   __SP:
+     DD 0xFFFE
+   __push:
+     ; copy the content of __SP in the C operand of the next instruction
+     SBNZ __SP, ZERO, <12>, <8>
+     ; copy the value to the top of the stack
+     SBNZ __push_operand, ZERO, 0xFFFE, <8>
+     ; decrease __SP twice
+     SBNZ __SP, ONE, __SP, <8>
+     SBNZ __SP, ONE, __SP, <8>
+     ; insert a SBNZ instruction that will jump inconditionally
+     ; the client code must overwrite the contents of __push_ret
+     ; with the "return" address
+     DD ONE ZERO JUNK
+   __push_ret:
+     DD 0xFFFF
+
+The ``<>`` represent offsets relative to the IP of the current
+instruction. That's not supported by the assembler, is just for
+illustrating purposes. So the <12> point to the C operand and <8> to
+the begining of the next instruction
+
+The ``PUSH`` opcode is something like:
+
+.. code-block:: asm
+   :linenos:
+
+      ; store to operand in __push_operand
+      SBNZ SRC, ZERO, __push_operand, <8>
+      ; overwrite the "return"" address
+      SBNZ data, ZERO, __push_ret, <8>
+      ; jump to __push
+      SBNZ ONE, ZERO, JUNK, __push
+      ; jump over the data. The return address points here
+      SBNZ ONE, ZERO, JUNK, exit
+    data:
+      DD <-8>
+    exit:
+
 
 Memory layout
 -------------
@@ -119,7 +172,7 @@ When writing a program we can use the constants ``assembler.ONE``,
 ``assembler.ZERO`` and ``assembler.JUNK`` to reference those
 addresses.
 
-The assembler inserts the following prologue in each program:
+The assembler inserts the following preamble in each program:
 
 .. code-block:: asm
 
@@ -130,6 +183,7 @@ The assembler inserts the following prologue in each program:
    DD 0x0000
    __JUNK:
    DD 0x0000
+   ;; runtime
    __start:
 
 the first instruction jumps over the data block and the program code
@@ -187,10 +241,10 @@ And finally we can run the program:
 
 .. code-block:: go
 
-	c.Print(N)
-	for !c.Halted() {
-		c.Step()
-		c.Print(N)
-	}
+    c.Print(N)
+    for !c.Halted() {
+        c.Step()
+        c.Print(N)
+    }
 
 And we'll get the result at address 0x5a, 2 * 3 = 6, great!!

@@ -291,3 +291,30 @@ func TestNOTZero(t *testing.T) {
 	assert.Equal(t, vm.Operand(0), t_peek(&c, &as, "DST"))
 	assert.Equal(t, t_resolve(&as, "SRC"), c.IP())
 }
+
+func TestPUSH(t *testing.T) {
+	as := New()
+	as.PUSH(Label("SRC"))
+	as.Label("SRC")
+	as.DD(0x1234)
+
+	c := t_createComputerAndRun(&as, 9)
+	assert.Equal(t, vm.Operand(0x1234), c.Peek(vm.MaxAddress-1))
+	assert.Equal(t, vm.Operand(-4), t_peek(&c, &as, "__SP"))
+	assert.Equal(t, t_resolve(&as, "SRC"), c.IP())
+}
+
+func TestPOP(t *testing.T) {
+	as := New()
+	as.PUSH(Label("SRC"))
+	as.POP(Label("DST"))
+	as.Label("SRC")
+	as.DD(0x1234)
+	as.Label("DST")
+	as.DD(0x0000)
+
+	c := t_createComputerAndRun(&as, 9+10)
+	assert.Equal(t, vm.Operand(0x1234), t_peek(&c, &as, "DST"))
+	assert.Equal(t, vm.Operand(-2), t_peek(&c, &as, "__SP"))
+	assert.Equal(t, t_resolve(&as, "SRC"), c.IP())
+}
