@@ -111,7 +111,6 @@ There's some suport code in the program's *preamble* and two opcodes.
 Here's the suport code for the ``PUSH`` opcode:
 
 .. code-block:: asm
-   :linenos:
 
    __push_operand:
      DD 0
@@ -140,19 +139,18 @@ the begining of the next instruction
 The ``PUSH`` opcode is something like:
 
 .. code-block:: asm
-   :linenos:
 
-      ; store to operand in __push_operand
-      SBNZ SRC, ZERO, __push_operand, <8>
-      ; overwrite the "return"" address
-      SBNZ data, ZERO, __push_ret, <8>
-      ; jump to __push
-      SBNZ ONE, ZERO, JUNK, __push
-      ; jump over the data. The return address points here
-      SBNZ ONE, ZERO, JUNK, exit
-    data:
-      DD <-8>
-    exit:
+   ; store to operand in __push_operand
+     SBNZ SRC, ZERO, __push_operand, <8>
+   ; overwrite the "return"" address
+     SBNZ data, ZERO, __push_ret, <8>
+   ; jump to __push
+     SBNZ ONE, ZERO, JUNK, __push
+   ; jump over the data. The return address points here
+     SBNZ ONE, ZERO, JUNK, exit
+   data:
+     DD <-8>
+   exit:
 
 
 Memory layout
